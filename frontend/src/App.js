@@ -1,23 +1,16 @@
-import logo from './logo.svg';
+import React from 'react';
+import WalletConnector from './components/WalletConnector';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="App App-header">
+      <img src={""} className="App-logo" alt="LoyalLoop" />
+      <h1>LoyalLoop</h1>
+      <WalletConnector />
+      <p>
+        Welcome to LoyalLoop, your gateway to seamless loyalty rewards.
+      </p>
     </div>
   );
 }
