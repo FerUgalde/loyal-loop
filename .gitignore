@@ -1,0 +1,59 @@
+# General
+.DS_Store
+.env
+.env.local
+.env.*.local
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Hardhat build artifacts
+artifacts/
+cache/
+coverage/
+typechain/
+typechain-types/
+hardhat.log
+deployments/
+
+# Frontend build
+frontend/build/
+frontend/dist/
+frontend/.next/
+frontend/.vite/
+frontend/node_modules/
+
+# Testing
+.nyc_output/
+coverage.json
+gas-report.txt
+
+# VSCode
+.vscode/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+debug.log
+
+# Environment and secrets
+.secret
+.mnemonic
+secrets.json
+
+# Other
+*.tsbuildinfo
+*.sol.js
+*.sol.d.ts
+.solhint.json
+.prettierrc.json

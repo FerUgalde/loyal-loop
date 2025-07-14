@@ -1,0 +1,1 @@
+// LoyaltyToken.sol
