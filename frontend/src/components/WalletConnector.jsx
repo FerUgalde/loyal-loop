@@ -20,7 +20,7 @@
 import React, { useState } from "react";
 import { connectWallet } from "../services/wallet";
 
-function WalletConnector () {
+function WalletConnector ({ onAccountChange }) {
   // State to store the connected wallet address
   const [account, setAccount] = useState(null);
 
@@ -36,7 +36,13 @@ function WalletConnector () {
   const handleConnect = async () => {
     try {
       const address = await connectWallet();
-      if (address) setAccount(address);
+      if (address) {
+        setAccount(address);
+        // Notify parent component about account change
+        if (onAccountChange) {
+          onAccountChange(address);
+        }
+      }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     }
