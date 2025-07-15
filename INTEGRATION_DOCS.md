@@ -1,9 +1,85 @@
-# ERC-20 Token Integration Documentation
+# ERC-20 Token Integration Documentation v2.0
 
 ## Overview
 This document outlines the integration of ERC-20 token logic into the LoyaltyDex frontend application. The integration allows users to interact with the LoyaltyToken smart contract through a web interface.
 
+## Version 2.0 Updates
+
+### New Features Added
+- **Public Token Earning**: Users can now earn tokens directly without owner permission
+- **Enhanced Access Control**: Dual function system for different use cases
+- **Improved Error Handling**: Better validation and user feedback
+- **Wallet Integration**: Seamless account switching and state management
+
 ## Recent Modifications
+
+### 1. Smart Contract Updates (`contracts/LoyaltyToken.sol`)
+
+#### New Function: `earnTokensForSelf(uint256 amountSpent)`
+**Purpose**: Allows any user to earn tokens for themselves by simulating purchases.
+
+**Key Features**:
+- Public access (no owner restriction)
+- Input validation for amount spent
+- Automatic token calculation and minting
+- Suitable for testing and user-driven scenarios
+
+**Usage Example**:
+```solidity
+// User spends 9 units, gets 3 tokens (9 ÷ 3 × 1 = 3)
+contract.earnTokensForSelf(9);
+```
+
+#### Enhanced Function: `earnTokens(address customer, uint256 amountSpent)`
+**Purpose**: Owner-only function for business integration and customer token allocation.
+
+**Key Features**:
+- Owner-only access control
+- Can mint tokens for any customer
+- Business integration ready
+- Audit trail through Transfer events
+
+### 2. Frontend Component Updates
+
+#### Enhanced EarnTokensForm (`frontend/src/components/EarnTokensForm.jsx`)
+**New Features**:
+- **Function Migration**: Now uses `earnTokensForSelf()` for public access
+- **Improved UX**: Loading states, status messages, and calculation previews
+- **Enhanced Validation**: Input validation and error handling
+- **Visual Feedback**: Success/error styling and transaction hashes
+- **Account Integration**: Displays connected wallet information
+
+**Key Improvements**:
+```javascript
+// Updated function call
+const tx = await contract.earnTokensForSelf(ethers.parseUnits(amountSpent, 0));
+
+// Enhanced user feedback
+setStatus(`Successfully earned ~${expectedTokens} LOYAL tokens! Transaction: ${tx.hash}`);
+```
+
+#### Updated WalletConnector (`frontend/src/components/WalletConnector.jsx`)
+**New Features**:
+- **Props Integration**: Accepts `onAccountChange` callback
+- **State Management**: Notifies parent components of account changes
+- **Seamless Integration**: Enables wallet switching without app restart
+
+### 3. Application State Management (`frontend/src/App.js`)
+
+#### New State Flow
+**Features**:
+- **Centralized Account State**: Single source of truth for connected wallet
+- **Component Communication**: WalletConnector → App → EarnTokensForm
+- **Automatic Updates**: Real-time account switching support
+
+**Implementation**:
+```javascript
+const [currentAccount, setCurrentAccount] = useState(null);
+
+// Pass account to components that need it
+<EarnTokensForm currentAccount={currentAccount} />
+<WalletConnector onAccountChange={setCurrentAccount} />
+```
 
 ### 1. Smart Contract Deployment (`scripts/deploy.js`)
 
@@ -182,67 +258,139 @@ npm start
 **Problem**: Functions not found or deprecated warnings
 **Solution**: Use updated ethers v6 syntax (see token.js for examples)
 
-## Security Considerations
+## Technical Implementation Details
 
-### Development Environment
-- ⚠️ **Never use test private keys on mainnet**
-- ⚠️ **Local test accounts are publicly known**
-- ⚠️ **Always use environment variables for production keys**
+### 1. Access Control Strategy
 
-### Production Deployment
-- Use hardware wallets or secure key management
-- Implement proper access controls
-- Add transaction confirmation prompts
-- Validate all user inputs
+#### Dual Function Approach
+The contract now implements two earning mechanisms:
 
-## Future Enhancements
+**Public Function** (`earnTokensForSelf`):
+- Any user can call
+- Self-minting only
+- Perfect for demos and testing
+- Immediate user feedback
 
-### Planned Features
-1. **Token Minting**: Add mint functionality for authorized users
-2. **Token Burning**: Implement token burning mechanism
-3. **Allowance System**: Add approve/transferFrom functionality
-4. **Transaction History**: Display past transactions
-5. **Multi-network Support**: Support multiple blockchain networks
+**Owner Function** (`earnTokens`):
+- Owner-only access
+- Can mint for any address
+- Business integration ready
+- Audit and control features
 
-### Code Improvements
-1. **Error Boundaries**: Add React error boundaries
-2. **Loading States**: Improve user feedback during transactions
-3. **Input Validation**: Enhanced form validation
-4. **Testing**: Add comprehensive unit and integration tests
+### 2. Frontend Integration Patterns
 
-## API Reference
-
-### Token Service Functions
-```javascript
-// Get contract instance
-const contract = await getTokenContract();
-
-// Check balance
-const balance = await getBalance(address);
-
-// Transfer tokens
-const txHash = await transferTokens(recipient, amount);
-
-// Get total supply
-const supply = await getTotalSupply();
+#### Component Communication Flow
+```
+WalletConnector → App.js → EarnTokensForm
+     ↓              ↓            ↓
+ Connect Wallet → Store State → Use Account
 ```
 
-### Wallet Service Functions
+#### State Management Best Practices
 ```javascript
-// Connect wallet
-const address = await connectWallet();
+// Good: Centralized state
+const [currentAccount, setCurrentAccount] = useState(null);
+
+// Avoid: Duplicated state in multiple components
 ```
 
-## Support & Troubleshooting
+#### Error Handling Pattern
+```javascript
+try {
+  const tx = await contract.earnTokensForSelf(amount);
+  await tx.wait();
+  setStatus("Success message with transaction hash");
+} catch (error) {
+  setStatus(`Error: ${error.message}`);
+}
+```
 
-For issues related to:
-- **Smart Contract**: Check Hardhat console output
-- **Frontend**: Check browser developer console
-- **MetaMask**: Ensure correct network and account selection
-- **Transactions**: Verify sufficient ETH for gas fees
+### . Security Considerations
+
+#### Development vs Production
+
+**Development (Current)**:
+- Public `earnTokensForSelf()` for testing
+- Known test accounts and private keys
+- Local blockchain environment
+
+**Production Recommendations**:
+- Remove or restrict `earnTokensForSelf()`
+- Implement proper business logic validation
+- Add spending verification mechanisms
+- Implement rate limiting and caps
+
+---Maybe---
+### 5. Deployment Checklist
+
+When deploying the updated contract:
+
+1. **Pre-deployment**:
+   - [ ] Compile contracts: `npx hardhat compile`
+   - [ ] Run tests if available
+   - [ ] Backup current deployment addresses
+
+2. **Deployment**:
+   - [ ] Deploy: `npx hardhat run scripts/deploy.js --network localhost`
+   - [ ] Save new contract address
+   - [ ] Copy updated ABI
+
+3. **Frontend Updates**:
+   - [ ] Update `CONTRACT_ADDRESS` in components
+   - [ ] Update ABI file in `frontend/src/abi/`
+   - [ ] Test wallet connection and token earning
+   - [ ] Verify transaction confirmations
+
+4. **Testing**:
+   - [ ] Connect wallet successfully
+   - [ ] Earn tokens with public function
+   - [ ] Transfer tokens between accounts
+   - [ ] Check balance updates
+
+## Version Comparison
+
+| Feature | v1.0 | v2.0 |
+|---------|------|------|
+| Token Earning | Owner-only | Public + Owner |
+| Access Control | Basic | Enhanced |
+| Frontend UX | Basic | Improved |
+| Error Handling | Limited | Comprehensive |
+| Documentation | Basic | Complete |
+| Wallet Integration | Simple | Advanced |
+
+## Migration Guide
+
+### From v1.0 to v2.0
+
+1. **Contract Changes**:
+   ```solidity
+   // Old (v1.0) - Owner only
+   function earnTokens(address customer, uint256 amountSpent) external onlyOwner
+   
+   // New (v2.0) - Added public function
+   function earnTokensForSelf(uint256 amountSpent) external
+   ```
+
+2. **Frontend Changes**:
+   ```javascript
+   // Old (v1.0)
+   const tx = await contract.earnTokens(currentAccount, amount);
+   
+   // New (v2.0)
+   const tx = await contract.earnTokensForSelf(amount);
+   ```
+
+3. **Component Structure**:
+   ```javascript
+   // Old (v1.0) - Simple components
+   <EarnTokensForm />
+   
+   // New (v2.0) - Props-based communication
+   <EarnTokensForm currentAccount={currentAccount} />
+   ```
 
 ---
 
 **Last Updated**: July 15, 2025  
-**Version**: 1.0.0  
+**Version**: 2.0.0 - Public Token Earning  
 **Author**: Fernanda

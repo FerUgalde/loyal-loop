@@ -2,7 +2,7 @@
 import { ethers } from "ethers";
 import LoyaltyToken from "../abi/LoyaltyToken.json";
 
-const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+const CONTRACT_ADDRESS = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
 
 export async function getTokenContract() {
   const provider = new ethers.BrowserProvider(window.ethereum);
@@ -69,4 +69,36 @@ export async function mintTokens(to, amount) {
   const tx = await contract.mint(to, ethers.parseUnits(amount, 18));
   await tx.wait();
   return tx.hash;
+}
+
+/**
+ * Redeems tokens for rewards (burns them from circulation)
+ * @param {string} amount - Amount of tokens to redeem
+ * @returns {Promise<string>} Transaction hash
+ */
+export async function redeemTokens(amount) {
+  // Validate address format
+  if (!amount || parseFloat(amount) <= 0) {
+    throw new Error("Invalid amount. Please enter a positive number.");
+  }
+  
+  const contract = await getTokenContract();
+  const tx = await contract.redeemReward(ethers.parseUnits(amount, 18));
+  await tx.wait();
+  return tx.hash;
+}
+
+/**
+ * Get token economics metrics
+ * @returns {Promise<Object>} Object with totalMinted, totalBurned, currentSupply
+ */
+export async function getTokenMetrics() {
+  const contract = await getTokenContract();
+  const [totalMinted, totalBurned, currentSupply] = await contract.getTokenMetrics();
+  
+  return {
+    totalMinted: ethers.formatUnits(totalMinted, 18),
+    totalBurned: ethers.formatUnits(totalBurned, 18),
+    currentSupply: ethers.formatUnits(currentSupply, 18)
+  };
 }

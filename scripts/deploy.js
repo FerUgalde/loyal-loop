@@ -2,7 +2,12 @@
  * LoyaltyToken Deployment Script
  * 
  * This script deploys the LoyaltyToken ERC-20 contract to the specified network.
- * The contract is deployed with an initial supply of 1,000,000 LOYAL tokens.
+ * The contract is deployed with an initial supply of 1,000 LOYAL tokens (hardcoded in contract).
+ * 
+ * New Features in this version:
+ * - Added earnTokensForSelf function for public token earning
+ * - Enhanced owner-only earnTokens function for business integration
+ * - Improved error handling and validation
  * 
  * Usage:
  * - For localhost: npx hardhat run scripts/deploy.js --network localhost
@@ -22,13 +27,15 @@ const { ethers } = require("hardhat");
  * @returns {Promise<void>} Promise that resolves when deployment is complete
  * @throws {Error} Throws error if deployment fails
  */
-async function main() {  
+async function main() {
+  console.log("Starting LoyaltyToken deployment...");
+  
   // Get the contract factory for LoyaltyToken
   const LoyaltyToken = await ethers.getContractFactory("LoyaltyToken");
   
-  // Deploy with initial supply of 1,000,000 tokens (18 decimals)
-  console.log("Deploying contract with 1,000,000 LOYAL tokens...");
-  const token = await LoyaltyToken.deploy(ethers.parseEther("1000000"));
+  // Deploy contract (no parameters needed - initial supply is set in constructor)
+  console.log("Deploying contract with 1,000 LOYAL tokens (as defined in contract)...");
+  const token = await LoyaltyToken.deploy();
   
   // Wait for the transaction to be mined
   await token.waitForDeployment();
