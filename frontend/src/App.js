@@ -1,5 +1,6 @@
 import React from 'react';
 import WalletConnector from './components/WalletConnector';
+import CreateTokenForm from './components/CreateTokenForm';
 import './App.css';
 
 function App() {
@@ -8,6 +9,8 @@ function App() {
       <img src={""} className="App-logo" alt="LoyalLoop" />
       <h1>LoyalLoop</h1>
       <WalletConnector />
+      <CreateTokenForm />
+      <hr/>
       <p>
         Welcome to LoyalLoop, your gateway to seamless loyalty rewards.
       </p>
