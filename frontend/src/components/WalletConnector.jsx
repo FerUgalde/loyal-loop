@@ -54,17 +54,18 @@ function WalletConnector () {
           <p>Connected Account: {account}</p>
         </div>
       ) : (
-        // Display connection button when no wallet is connected
-        <button onClick={handleConnect}>Connect Wallet</button>
+        <div>
+          {/* Display connection button when no wallet is connected */}
+          <button onClick={handleConnect}>Connect Wallet</button>
+          {/* User guidance and instructions */}
+          <p>
+            Please connect your wallet to interact with the LoyalLoop platform.
+          </p>
+          <p>
+            Ensure you have a wallet extension like MetaMask installed in your browser.
+          </p>
+        </div>
       )}
-      
-      {/* User guidance and instructions */}
-      <p>
-        Please connect your wallet to interact with the LoyalLoop platform.
-      </p>
-      <p>
-        Ensure you have a wallet extension like MetaMask installed in your browser.
-      </p>
     </div>
   );
 }
