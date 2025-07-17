@@ -32,6 +32,26 @@ contract LoyaltyToken is ERC20, Ownable {
     
     /// @dev Total tokens burned (for deflationary tracking)
     uint256 public totalBurned;
+    
+    /// @dev Counter for coupon IDs
+    uint256 private nextCouponId = 1;
+    
+    /// @dev Mapping from coupon ID to coupon details
+    mapping(uint256 => Coupon) public coupons;
+    
+    /// @dev Mapping from user address to their active coupons
+    mapping(address => uint256[]) public userCoupons;
+    
+    /// @dev Coupon structure
+    struct Coupon {
+        uint256 id;
+        address owner;
+        uint256 discountPercent; // Percentage discount (1-100)
+        uint256 tokensBurned;    // Tokens burned to get this coupon
+        uint256 expiryTime;      // Unix timestamp
+        bool isUsed;             // Whether coupon has been redeemed
+        string businessType;     // Type of business (restaurant, retail, etc.)
+    }
 
     /**
      * @dev Contract constructor
@@ -135,9 +155,12 @@ contract LoyaltyToken is ERC20, Ownable {
      */
     function earnTokensForSelf(uint256 amountSpent) external {
         require(amountSpent > 0, "Amount spent must be greater than 0");
+        require(amountSpent >= unitValue, "Amount spent must be at least unitValue to earn tokens");
         
         // Calculate tokens to mint based on spending, unit value, and emission rate
         uint256 tokensToMint = (amountSpent / unitValue) * emissionRate;
+        require(tokensToMint > 0, "No tokens to mint");
+        
         uint256 tokensWithDecimals = tokensToMint * 10 ** decimals();
         
         // Mint the calculated tokens to the caller (with 18 decimals)
@@ -148,24 +171,100 @@ contract LoyaltyToken is ERC20, Ownable {
     }
 
     /**
-     * @dev Burns tokens when user redeems rewards
-     * @param amount Amount of tokens to burn for redemption
+     * @dev Creates a discount coupon by burning tokens
+     * @param tokenAmount Amount of tokens to burn for the coupon
+     * @param discountPercent Discount percentage (1-100)
+     * @param businessType Type of business the coupon is for
+     * @param validityDays Number of days the coupon is valid
      * 
-     * @notice This function implements the deflationary mechanism
-     * @notice Tokens are permanently removed from circulation
+     * @notice Burns tokens and creates a discount coupon
+     * @notice Implements the deflationary mechanism while providing utility
      */
-    function redeemReward(uint256 amount) external {
-        require(amount > 0, "Amount must be greater than 0");
-        require(balanceOf(msg.sender) >= amount, "Insufficient token balance");
+    function createCoupon(
+        uint256 tokenAmount, 
+        uint256 discountPercent, 
+        string memory businessType, 
+        uint256 validityDays
+    ) external returns (uint256 couponId) {
+        require(tokenAmount > 0, "Token amount must be greater than 0");
+        require(discountPercent > 0 && discountPercent <= 100, "Discount must be between 1-100%");
+        require(validityDays > 0 && validityDays <= 365, "Validity must be between 1-365 days");
+        require(balanceOf(msg.sender) >= tokenAmount, "Insufficient token balance");
         
-        // Burn tokens to reduce total supply (deflationary mechanism)
-        _burn(msg.sender, amount);
+        // Burn tokens (deflationary mechanism)
+        _burn(msg.sender, tokenAmount);
+        totalBurned += tokenAmount;
         
-        // Update tracking
-        totalBurned += amount;
+        // Create coupon
+        couponId = nextCouponId++;
+        uint256 expiryTime = block.timestamp + (validityDays * 24 * 60 * 60);
         
-        // Emit event for tracking redemptions
-        emit TokensRedeemed(msg.sender, amount);
+        coupons[couponId] = Coupon({
+            id: couponId,
+            owner: msg.sender,
+            discountPercent: discountPercent,
+            tokensBurned: tokenAmount,
+            expiryTime: expiryTime,
+            isUsed: false,
+            businessType: businessType
+        });
+        
+        // Add to user's coupons
+        userCoupons[msg.sender].push(couponId);
+        
+        // Emit events
+        emit TokensRedeemed(msg.sender, tokenAmount);
+        emit CouponCreated(couponId, msg.sender, discountPercent, tokenAmount);
+        
+        return couponId;
+    }
+    
+    /**
+     * @dev Uses a coupon (marks it as used)
+     * @param couponId ID of the coupon to use
+     * 
+     * @notice Only coupon owner can use it
+     * @notice Only works if coupon is valid and not expired
+     */
+    function useCoupon(uint256 couponId) external {
+        Coupon storage coupon = coupons[couponId];
+        
+        require(coupon.owner == msg.sender, "Not coupon owner");
+        require(!coupon.isUsed, "Coupon already used");
+        require(block.timestamp <= coupon.expiryTime, "Coupon expired");
+        
+        // Mark as used
+        coupon.isUsed = true;
+        
+        emit CouponUsed(couponId, msg.sender);
+    }
+    
+    /**
+     * @dev Get user's active coupons
+     * @param user Address of the user
+     * @return Array of coupon IDs
+     */
+    function getUserCoupons(address user) external view returns (uint256[] memory) {
+        return userCoupons[user];
+    }
+    
+    /**
+     * @dev Get coupon details
+     * @param couponId ID of the coupon
+     * @return Coupon struct with all details
+     */
+    function getCouponDetails(uint256 couponId) external view returns (Coupon memory) {
+        return coupons[couponId];
+    }
+    
+    /**
+     * @dev Check if coupon is valid and usable
+     * @param couponId ID of the coupon
+     * @return bool indicating if coupon is valid
+     */
+    function isCouponValid(uint256 couponId) external view returns (bool) {
+        Coupon memory coupon = coupons[couponId];
+        return !coupon.isUsed && block.timestamp <= coupon.expiryTime && coupon.owner != address(0);
     }
     
     /**
@@ -180,4 +279,8 @@ contract LoyaltyToken is ERC20, Ownable {
     
     // Event for tracking redemptions
     event TokensRedeemed(address indexed user, uint256 amount);
+    
+    // Events for coupon system
+    event CouponCreated(uint256 indexed couponId, address indexed user, uint256 discountPercent, uint256 tokensBurned);
+    event CouponUsed(uint256 indexed couponId, address indexed user);
 }

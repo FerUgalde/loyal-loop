@@ -28,9 +28,8 @@
 import { useState } from "react";
 import { ethers } from "ethers";
 import LoyaltyToken from "../abi/LoyaltyToken.json";
-
-// Update this address to your deployed contract address
-const CONTRACT_ADDRESS = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
+import { debugTokenState } from "../services/token";
+import { CONTRACT_ADDRESSES } from "../config/contracts.js";
 
 /**
  * EarnTokensForm functional component
@@ -65,6 +64,11 @@ const EarnTokensForm = ({ currentAccount }) => {
       return;
     }
 
+    if (parseFloat(amountSpent) < 3) {
+      setStatus("Amount spent must be at least 3 units to earn tokens");
+      return;
+    }
+
     setIsLoading(true);
     setStatus("Processing...");
 
@@ -72,7 +76,7 @@ const EarnTokensForm = ({ currentAccount }) => {
       // Connect to the contract
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, LoyaltyToken.abi, signer);
+      const contract = new ethers.Contract(CONTRACT_ADDRESSES.loyaltyToken, LoyaltyToken.abi, signer);
 
       // Call earnTokensForSelf function (allows any user to earn tokens)
       const tx = await contract.earnTokensForSelf(ethers.parseUnits(amountSpent, 0));
@@ -96,20 +100,42 @@ const EarnTokensForm = ({ currentAccount }) => {
   };
 
   return (
-    <div>
+    <div style={{ 
+      padding: "20px",
+      backgroundColor: "#3a3f47",
+      borderRadius: "8px",
+      marginBottom: "20px",
+      border: "1px solid #555",
+      color: "white"
+    }}>
       {/* Form header */}
-      <h2>Simulate Purchase & Earn Tokens</h2>
+      <h2 style={{ color: "white" }}>🛒 Simulate Purchase & Earn Tokens</h2>
+      <p style={{ color: "#ccc", marginBottom: "20px" }}>
+        Simulate a purchase to earn LOYAL tokens. Tokens are calculated based on amount spent.
+      </p>
       
       {/* Input for amount spent */}
-      <div>
+      <div style={{ marginBottom: "15px" }}>
+        <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "white" }}>
+          Amount Spent (units)
+        </label>
         <input 
           type="number" 
-          placeholder="Amount Spent (units)" 
+          placeholder="e.g., 15" 
           value={amountSpent} 
           onChange={(e) => setAmountSpent(e.target.value)}
           disabled={isLoading}
           min="0"
           step="1"
+          style={{ 
+            width: "100%", 
+            padding: "10px", 
+            borderRadius: "4px", 
+            border: "1px solid #555",
+            backgroundColor: "#2d3138",
+            color: "white",
+            fontSize: "16px"
+          }}
         />
       </div>
       
@@ -117,24 +143,47 @@ const EarnTokensForm = ({ currentAccount }) => {
       <button 
         onClick={handleEarn}
         disabled={isLoading || !currentAccount}
+        style={{
+          width: "100%",
+          padding: "12px",
+          backgroundColor: currentAccount ? "#28a745" : "#6c757d",
+          color: "white",
+          border: "none",
+          borderRadius: "6px",
+          fontSize: "16px",
+          cursor: currentAccount ? "pointer" : "not-allowed",
+          marginBottom: "15px"
+        }}
       >
-        {isLoading ? "Processing..." : "Earn Tokens"}
+        {isLoading ? "Processing..." : "💰 Earn Tokens"}
       </button>
       
       {/* Information about token calculation */}
-      <div style={{ marginTop: "10px", fontSize: "0.9em", color: "#666" }}>
-        <p>Token calculation: (Amount ÷ 3) × 1 = Tokens earned</p>
-        <p>Example: Spend 9 units → Get 3 LOYAL tokens</p>
+      <div style={{ 
+        marginBottom: "15px", 
+        padding: "15px",
+        backgroundColor: "#2d3138",
+        borderRadius: "6px",
+        border: "1px solid #555"
+      }}>
+        <h4 style={{ color: "#87ceeb", marginBottom: "10px" }}>💡 How it works:</h4>
+        <div style={{ fontSize: "0.9em", color: "#ccc" }}>
+          <p>• <strong style={{ color: "#ffd700" }}>Minimum spend: 3 units</strong> (to earn at least 1 token)</p>
+          <p>• Token calculation: (Amount ÷ 3) × 1 = Tokens earned</p>
+          <p>• Example: Spend 9 units → Get 3 LOYAL tokens</p>
+          <p>• Example: Spend 15 units → Get 5 LOYAL tokens</p>
+        </div>
       </div>
       
       {/* Status display */}
       {status && (
         <div style={{ 
-          marginTop: "10px", 
-          padding: "10px", 
-          backgroundColor: status.includes("Successfully") ? "#d4edda" : "#f8d7da",
-          border: `1px solid ${status.includes("Successfully") ? "#c3e6cb" : "#f5c6cb"}`,
-          borderRadius: "4px"
+          marginBottom: "15px", 
+          padding: "12px", 
+          backgroundColor: status.includes("Successfully") ? "#2d5a3d" : "#5a2d2d",
+          border: `1px solid ${status.includes("Successfully") ? "#4caf50" : "#f44336"}`,
+          borderRadius: "6px",
+          color: "white"
         }}>
           {status}
         </div>
@@ -142,9 +191,40 @@ const EarnTokensForm = ({ currentAccount }) => {
       
       {/* Account info */}
       {currentAccount && (
-        <div style={{ marginTop: "10px", fontSize: "0.8em", color: "#888" }}>
-          Connected: {currentAccount.slice(0, 6)}...{currentAccount.slice(-4)}
+        <div style={{ 
+          padding: "10px", 
+          backgroundColor: "#2d3138", 
+          borderRadius: "4px",
+          fontSize: "0.9em", 
+          color: "white",
+          border: "1px solid #555"
+        }}>
+          <strong style={{ color: "#87ceeb" }}>Connected:</strong> {currentAccount.slice(0, 6)}...{currentAccount.slice(-4)}
         </div>
+      )}
+      
+      {/* Debug Button */}
+      {currentAccount && (
+        <button
+          onClick={async () => {
+            console.log("🔍 Running debug...");
+            const debugInfo = await debugTokenState(currentAccount);
+            console.log("Debug results:", debugInfo);
+            setStatus(`Debug complete - check browser console for details. Your balance: ${debugInfo.userBalance} LOYAL`);
+          }}
+          style={{
+            marginTop: "10px",
+            padding: "8px 16px",
+            backgroundColor: "#6c757d",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontSize: "0.85em"
+          }}
+        >
+          🔧 Debug Contract State
+        </button>
       )}
     </div>
   );
