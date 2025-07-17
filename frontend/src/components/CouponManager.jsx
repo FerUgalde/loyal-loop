@@ -184,6 +184,19 @@ function CouponManager({ currentAccount }) {
     }
   };
 
+  /**
+   * Calculate fee and total required tokens for coupon creation
+   */
+  const calculateFeeAndTotal = (tokens) => {
+    if (!tokens || tokens === "") return { fee: 0, total: 0 };
+    
+    const tokenNum = parseFloat(tokens);
+    const fee = Math.max(Math.ceil(tokenNum * 0.01), tokenNum > 0 ? 1 : 0); // 1% fee, minimum 1 token
+    const total = tokenNum + fee;
+    
+    return { fee, total };
+  };
+
   //-----------------------------------------------------------------------------------------///
 
   return (
@@ -364,22 +377,60 @@ function CouponManager({ currentAccount }) {
           </div>
         </div>
         
-        {discountPercent && (
-          <div style={{ fontSize: "0.8em", color: "#87ceeb", marginBottom: "10px" }}>
-            💡 Recommended: {getRecommendedTokens(discountPercent)} tokens for {discountPercent}% discount
+        {tokenAmount && (
+          <div style={{ 
+            fontSize: "0.85em", 
+            backgroundColor: "#2d4a3d", 
+            padding: "10px", 
+            borderRadius: "6px",
+            border: "1px solid #4caf50",
+            marginBottom: "15px"
+          }}>
+            <div style={{ color: "#87ceeb", marginBottom: "5px" }}>
+              � <strong>Cost Breakdown:</strong>
+            </div>
+            <div style={{ color: "#ccc" }}>
+              • Tokens to burn: {tokenAmount} LOYAL
+            </div>
+            <div style={{ color: "#ccc" }}>
+              • Service fee (1%): {calculateFeeAndTotal(tokenAmount).fee} LOYAL
+            </div>
+            <div style={{ color: "#87ceeb", fontWeight: "bold", marginTop: "5px" }}>
+              • <strong>Total required: {calculateFeeAndTotal(tokenAmount).total} LOYAL</strong>
+            </div>
+            {parseFloat(userBalance) < calculateFeeAndTotal(tokenAmount).total && (
+              <div style={{ color: "#ff6b6b", marginTop: "5px" }}>
+                ⚠️ Insufficient balance! You need {(calculateFeeAndTotal(tokenAmount).total - parseFloat(userBalance)).toFixed(2)} more LOYAL tokens.
+              </div>
+            )}
           </div>
         )}
         
         <button
           onClick={handleCreateCoupon}
-          disabled={isLoading || !currentAccount || !tokenAmount || !discountPercent}
+          disabled={
+            isLoading || 
+            !currentAccount || 
+            !tokenAmount || 
+            !discountPercent ||
+            (tokenAmount && parseFloat(userBalance) < calculateFeeAndTotal(tokenAmount).total)
+          }
           style={{
             padding: "12px 20px",
-            backgroundColor: currentAccount && tokenAmount && discountPercent ? "#007bff" : "#6c757d",
+            backgroundColor: (
+              currentAccount && 
+              tokenAmount && 
+              discountPercent && 
+              !(tokenAmount && parseFloat(userBalance) < calculateFeeAndTotal(tokenAmount).total)
+            ) ? "#007bff" : "#6c757d",
             color: "white",
             border: "none",
             borderRadius: "6px",
-            cursor: isLoading || !currentAccount ? "not-allowed" : "pointer",
+            cursor: (
+              isLoading || 
+              !currentAccount || 
+              (tokenAmount && parseFloat(userBalance) < calculateFeeAndTotal(tokenAmount).total)
+            ) ? "not-allowed" : "pointer",
             fontSize: "16px",
             width: "100%"
           }}
