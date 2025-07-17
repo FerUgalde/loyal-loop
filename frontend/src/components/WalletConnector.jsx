@@ -49,27 +49,69 @@ function WalletConnector ({ onAccountChange }) {
   };
 
   return (
-    <div className="wallet-connector">
+    <div style={{ 
+      padding: "20px",
+      backgroundColor: "#3a3f47",
+      borderRadius: "8px",
+      marginBottom: "20px",
+      border: "1px solid #555",
+      color: "white",
+      textAlign: "center"
+    }}>
       {/* Main heading for the wallet connection section */}
-      <h2>Connect Your Wallet</h2>
+      <h2 style={{ color: "white" }}>🔗 Connect Your Wallet</h2>
       
       {/* Conditional rendering based on wallet connection status */}
       {account ? (
         // Display connected account information
-        <div>
-          <p>Connected Account: {account}</p>
+        <div style={{ 
+          padding: "15px",
+          backgroundColor: "#2d5a3d",
+          borderRadius: "8px",
+          border: "1px solid #4caf50",
+          marginTop: "15px"
+        }}>
+          <div style={{ fontSize: "1.1em", fontWeight: "bold", color: "white", marginBottom: "5px" }}>
+            ✅ Wallet Connected
+          </div>
+          <div style={{ fontSize: "0.9em", color: "#ccc", wordBreak: "break-all" }}>
+            {account}
+          </div>
         </div>
       ) : (
         <div>
           {/* Display connection button when no wallet is connected */}
-          <button onClick={handleConnect}>Connect Wallet</button>
+          <button 
+            onClick={handleConnect}
+            style={{
+              padding: "15px 30px",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "16px",
+              cursor: "pointer",
+              marginBottom: "20px",
+              fontWeight: "bold"
+            }}
+          >
+            🦊 Connect MetaMask
+          </button>
+          
           {/* User guidance and instructions */}
-          <p>
-            Please connect your wallet to interact with the LoyalLoop platform.
-          </p>
-          <p>
-            Ensure you have a wallet extension like MetaMask installed in your browser.
-          </p>
+          <div style={{ 
+            backgroundColor: "#2d3138",
+            padding: "15px",
+            borderRadius: "8px",
+            border: "1px solid #555"
+          }}>
+            <p style={{ color: "#ccc", margin: "0 0 10px 0" }}>
+              Please connect your wallet to interact with the LoyalLoop platform.
+            </p>
+            <p style={{ color: "#87ceeb", margin: "0", fontSize: "0.9em" }}>
+              💡 Ensure you have MetaMask installed in your browser.
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -50,3 +50,35 @@ All notable changes to the LoyalLoop project will be documented in this file.
 - Balance checking
 - Basic error handling
 
+## [3.0.0] - 2025-07-16
+
+### Added
+- **SimpleDEX Contract**: Complete DEX implementation for ETH ↔ LOYAL token swaps
+- **Liquidity Management**: Add/remove liquidity functionality for business owners
+- **Token Swap Interface**: Frontend component for bidirectional token trading
+- **Business Dashboard**: Comprehensive management interface for PYMEs
+- **Real-time DEX Metrics**: Live exchange rates, liquidity tracking, and fee display
+- **Swap Calculations**: Preview functionality with fee calculations
+- **Tab-based UI**: Organized interface with Customer, Trading, and Business views
+- **Enhanced Documentation**: Complete JSDoc documentation for new components
+- **DEX Service Module**: Centralized service for DEX interactions
+
+### Changed
+- **App.js Architecture**: Migrated to tabbed interface for better UX
+- **Frontend Structure**: Organized components by user type (customer/business)
+- **Contract Addresses**: Updated all components with new deployment addresses
+- **Service Layer**: Enhanced modular service architecture
+
+### Technical Features
+- **Exchange Rate**: 1000 LOYAL per ETH with 1% trading fee
+- **Liquidity Pools**: ETH/LOYAL liquidity management system
+- **Swap Mechanism**: Automated market maker with fee collection
+- **Owner Controls**: Business-only functions for liquidity and rate management
+- **Security**: ReentrancyGuard protection for all DEX operations
+
+### Security
+- **Access Control**: Owner-only functions for critical business operations
+- **Input Validation**: Comprehensive validation for all DEX operations
+- **Slippage Protection**: Built-in calculations for swap preview
+- **Emergency Functions**: Emergency withdrawal mechanisms for business protection
+

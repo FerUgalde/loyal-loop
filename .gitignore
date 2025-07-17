@@ -57,3 +57,11 @@ secrets.json
 *.sol.d.ts
 .solhint.json
 .prettierrc.json
+
+# Tests
+verify-contracts.js
+verify-addresses.js
+test-earn-tokens.js
+quick-deploy.js
+debug-addliquidity.js
+frontend/src/services/contractVerification.js

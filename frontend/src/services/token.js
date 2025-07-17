@@ -1,13 +1,15 @@
 // token.js
 import { ethers } from "ethers";
 import LoyaltyToken from "../abi/LoyaltyToken.json";
+import { CONTRACT_ADDRESSES, TOKEN_CONFIG, logConfig } from "../config/contracts.js";
 
-const CONTRACT_ADDRESS = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
+// Initialize configuration logging
+logConfig();
 
 export async function getTokenContract() {
   const provider = new ethers.BrowserProvider(window.ethereum);
   const signer = await provider.getSigner();
-  return new ethers.Contract(CONTRACT_ADDRESS, LoyaltyToken.abi, signer);
+  return new ethers.Contract(CONTRACT_ADDRESSES.loyaltyToken, LoyaltyToken.abi, signer);
 }
 
 export async function getBalance(address) {
@@ -33,6 +35,39 @@ export async function transferTokens(to, amount) {
   return tx.hash;
 }
 
+/**
+ * Approve a spender to use tokens on behalf of the user
+ * @param {string} spenderAddress - Address that will be approved to spend tokens
+ * @param {string} amount - Amount of tokens to approve (in token units)
+ * @returns {Promise<string>} Transaction hash
+ */
+export async function approveTokens(spenderAddress, amount) {
+  if (!ethers.isAddress(spenderAddress)) {
+    throw new Error("Invalid spender address");
+  }
+  
+  const contract = await getTokenContract();
+  const tokenValue = ethers.parseUnits(amount, 18);
+  const tx = await contract.approve(spenderAddress, tokenValue);
+  await tx.wait();
+  return tx.hash;
+}
+
+/**
+ * Check the allowance for a spender
+ * @param {string} ownerAddress - Owner of the tokens
+ * @param {string} spenderAddress - Address that is approved to spend
+ * @returns {Promise<string>} Allowance amount in token units
+ */
+export async function getAllowance(ownerAddress, spenderAddress) {
+  if (!ethers.isAddress(ownerAddress) || !ethers.isAddress(spenderAddress)) {
+    throw new Error("Invalid addresses");
+  }
+  
+  const contract = await getTokenContract();
+  const allowance = await contract.allowance(ownerAddress, spenderAddress);
+  return ethers.formatUnits(allowance, 18);
+}
 
 //-----------------------------------------------------------------------------------------///
 /**
@@ -49,10 +84,8 @@ export async function getTotalSupply() {
  */
 export async function getOwner() {
   const contract = await getTokenContract();
-  // The owner is the one who deployed and has all tokens initially
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const accounts = await provider.listAccounts();
-  return accounts[0].address; // First account is usually the deployer
+  // Get the actual owner from the contract
+  return await contract.owner();
 }
 
 /**
@@ -72,33 +105,207 @@ export async function mintTokens(to, amount) {
 }
 
 /**
- * Redeems tokens for rewards (burns them from circulation)
- * @param {string} amount - Amount of tokens to redeem
- * @returns {Promise<string>} Transaction hash
+ * Creates a discount coupon by burning tokens
+ * @param {string} tokenAmount - Amount of tokens to burn
+ * @param {number} discountPercent - Discount percentage (1-100)
+ * @param {string} businessType - Type of business
+ * @param {number} validityDays - Number of days coupon is valid
+ * @returns {Promise<Object>} Object with transaction hash and coupon ID
  */
-export async function redeemTokens(amount) {
-  // Validate address format
-  if (!amount || parseFloat(amount) <= 0) {
-    throw new Error("Invalid amount. Please enter a positive number.");
+export async function createCoupon(tokenAmount, discountPercent, businessType, validityDays) {
+  // Validate inputs
+  if (!tokenAmount || parseFloat(tokenAmount) <= 0) {
+    throw new Error("Invalid token amount");
+  }
+  if (!discountPercent || discountPercent < 1 || discountPercent > 100) {
+    throw new Error("Discount must be between 1-100%");
+  }
+  if (!validityDays || validityDays < 1 || validityDays > 365) {
+    throw new Error("Validity must be between 1-365 days");
   }
   
   const contract = await getTokenContract();
-  const tx = await contract.redeemReward(ethers.parseUnits(amount, 18));
+  const tx = await contract.createCoupon(
+    ethers.parseUnits(tokenAmount, 18),
+    discountPercent,
+    businessType || "general",
+    validityDays
+  );
+  
+  const receipt = await tx.wait();
+  
+  // Extract coupon ID from events
+  const couponCreatedEvent = receipt.logs.find(log => {
+    try {
+      const parsedLog = contract.interface.parseLog(log);
+      return parsedLog.name === "CouponCreated";
+    } catch {
+      return false;
+    }
+  });
+  
+  let couponId = null;
+  if (couponCreatedEvent) {
+    const parsedLog = contract.interface.parseLog(couponCreatedEvent);
+    couponId = parsedLog.args.couponId.toString();
+  }
+  
+  return { hash: tx.hash, couponId };
+}
+
+/**
+ * Gets user's coupons
+ * @param {string} userAddress - User's wallet address
+ * @returns {Promise<Array>} Array of coupon objects
+ */
+export async function getUserCoupons(userAddress) {
+  if (!ethers.isAddress(userAddress)) {
+    throw new Error("Invalid user address");
+  }
+  
+  const contract = await getTokenContract();
+  const couponIds = await contract.getUserCoupons(userAddress);
+  
+  // Get details for each coupon
+  const coupons = [];
+  for (const couponId of couponIds) {
+    try {
+      const details = await contract.getCouponDetails(couponId);
+      const isValid = await contract.isCouponValid(couponId);
+      
+      coupons.push({
+        id: details.id.toString(),
+        discountPercent: details.discountPercent.toString(),
+        tokensBurned: ethers.formatUnits(details.tokensBurned, 18),
+        expiryTime: new Date(Number(details.expiryTime) * 1000),
+        isUsed: details.isUsed,
+        businessType: details.businessType,
+        isValid: isValid
+      });
+    } catch (error) {
+      console.error(`Error fetching coupon ${couponId}:`, error);
+    }
+  }
+  
+  return coupons;
+}
+
+/**
+ * Uses a coupon (marks it as used)
+ * @param {string} couponId - ID of the coupon to use
+ * @returns {Promise<string>} Transaction hash
+ */
+export async function applyCoupon(couponId) {
+  if (!couponId) {
+    throw new Error("Coupon ID is required");
+  }
+  
+  const contract = await getTokenContract();
+  const tx = await contract.useCoupon(couponId);
   await tx.wait();
   return tx.hash;
 }
 
 /**
- * Get token economics metrics
- * @returns {Promise<Object>} Object with totalMinted, totalBurned, currentSupply
+ * Redeems tokens for rewards (burns them from circulation)
+ * @param {string} amount - Amount of tokens to redeem
+ * @returns {Promise<string>} Transaction hash
  */
-export async function getTokenMetrics() {
-  const contract = await getTokenContract();
-  const [totalMinted, totalBurned, currentSupply] = await contract.getTokenMetrics();
-  
-  return {
-    totalMinted: ethers.formatUnits(totalMinted, 18),
-    totalBurned: ethers.formatUnits(totalBurned, 18),
-    currentSupply: ethers.formatUnits(currentSupply, 18)
-  };
+export async function redeemTokens(amount) {
+  // This function now redirects to createCoupon with default values
+  throw new Error("Use createCoupon() instead of redeemTokens() for better rewards");
 }
+
+/**
+ * Get token economics metrics
+ * @param {Object} provider - Optional ethers provider (for compatibility)
+ * @returns {Promise<Object>} Object with comprehensive token metrics
+ */
+export async function getTokenMetrics(provider = null) {
+  try {
+    const contract = await getTokenContract();
+    
+    // Get metrics from contract
+    const [totalMinted, totalBurned, currentSupply] = await contract.getTokenMetrics();
+    const emissionRate = await contract.emissionRate();
+    const unitValue = await contract.unitValue();
+    
+    return {
+      success: true,
+      totalSupply: ethers.formatUnits(currentSupply, 18),
+      totalMinted: ethers.formatUnits(totalMinted, 18),
+      totalBurned: ethers.formatUnits(totalBurned, 18),
+      emissionRate: emissionRate.toString(),
+      unitValue: ethers.formatUnits(unitValue, 18)
+    };
+  } catch (error) {
+    console.error("Error getting token metrics:", error);
+    return {
+      success: false,
+      error: error.message,
+      totalSupply: "0",
+      totalMinted: "0", 
+      totalBurned: "0",
+      emissionRate: "0",
+      unitValue: "0"
+    };
+  }
+}
+
+/**
+ * Debug function to check contract state and balances
+ * @param {string} userAddress - User's wallet address
+ * @returns {Promise<Object>} Debug information
+ */
+export async function debugTokenState(userAddress) {
+  try {
+    const contract = await getTokenContract();
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    
+    // Get contract info
+    const name = await contract.name();
+    const symbol = await contract.symbol();
+    const totalSupply = await contract.totalSupply();
+    const owner = await contract.owner();
+    
+    // Get user balance
+    const userBalance = await contract.balanceOf(userAddress);
+    
+    // Get owner balance
+    const ownerBalance = await contract.balanceOf(owner);
+    
+    // Get token metrics
+    const emissionRate = await contract.emissionRate();
+    const unitValue = await contract.unitValue();
+    
+    console.log("🔍 Token Contract Debug Info:");
+    console.log("- Contract Address:", CONTRACT_ADDRESSES.loyaltyToken);
+    console.log("- Name:", name);
+    console.log("- Symbol:", symbol);
+    console.log("- Total Supply:", ethers.formatEther(totalSupply));
+    console.log("- Owner:", owner);
+    console.log("- User Address:", userAddress);
+    console.log("- User Balance:", ethers.formatEther(userBalance));
+    console.log("- Owner Balance:", ethers.formatEther(ownerBalance));
+    console.log("- Emission Rate:", emissionRate.toString());
+    console.log("- Unit Value:", unitValue.toString());
+    
+    return {
+      contractAddress: CONTRACT_ADDRESSES.loyaltyToken,
+      name,
+      symbol,
+      totalSupply: ethers.formatEther(totalSupply),
+      owner,
+      userAddress,
+      userBalance: ethers.formatEther(userBalance),
+      ownerBalance: ethers.formatEther(ownerBalance),
+      emissionRate: emissionRate.toString(),
+      unitValue: unitValue.toString()
+    };
+  } catch (error) {
+    console.error("❌ Debug error:", error);
+    return { error: error.message };
+  }
+}
+
+//-----------------------------------------------------------------------------------------///

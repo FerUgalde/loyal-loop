@@ -1,5 +1,8 @@
 .App {
   text-align: center;
+  background-color: #282c34;
+  color: white;
+  font-family: 'Arial', sans-serif;
 }
 
 .App-logo {
@@ -26,6 +29,47 @@
 
 .App-link {
   color: #61dafb;
+}
+
+/* Dark theme form elements */
+input, textarea, select {
+  background-color: #3a3f47 !important;
+  color: white !important;
+  border: 1px solid #555 !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  margin: 5px !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #aaa !important;
+}
+
+button {
+  background-color: #007bff !important;
+  color: white !important;
+  border: 1px solid #007bff !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  margin: 5px !important;
+  cursor: pointer !important;
+}
+
+button:hover {
+  background-color: #0056b3 !important;
+}
+
+button:disabled {
+  background-color: #555 !important;
+  border-color: #555 !important;
+  cursor: not-allowed !important;
+}
+
+/* Status messages */
+.status-message {
+  background-color: #3a3f47 !important;
+  color: white !important;
+  border: 1px solid #555 !important;
 }
 
 @keyframes App-logo-spin {
