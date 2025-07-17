@@ -33,6 +33,9 @@ contract LoyaltyToken is ERC20, Ownable {
     /// @dev Total tokens burned (for deflationary tracking)
     uint256 public totalBurned;
     
+    /// @dev Coupon creation fee in basis points (100 = 1%)
+    uint256 public couponFee = 100; // 1% by default
+    
     /// @dev Counter for coupon IDs
     uint256 private nextCouponId = 1;
     
@@ -100,6 +103,24 @@ contract LoyaltyToken is ERC20, Ownable {
      */
     function setUnitValue(uint256 _unit) external onlyOwner {
         unitValue = _unit;
+    }
+
+    /**
+     * @dev Sets the coupon creation fee
+     * @param _fee New fee in basis points (100 = 1%)
+     * 
+     * @notice Only the contract owner can modify the coupon fee
+     * @notice Maximum fee is 10% (1000 basis points)
+     * 
+     * Example: 100 = 1%, 250 = 2.5%, 1000 = 10%
+     * 
+     * Requirements:
+     * - Caller must be the contract owner
+     * - Fee cannot exceed 10%
+     */
+    function setCouponFee(uint256 _fee) external onlyOwner {
+        require(_fee <= 1000, "Fee cannot exceed 10%");
+        couponFee = _fee;
     }
 
     /**
@@ -179,6 +200,7 @@ contract LoyaltyToken is ERC20, Ownable {
      * 
      * @notice Burns tokens and creates a discount coupon
      * @notice Implements the deflationary mechanism while providing utility
+     * @notice Charges 1% fee on token amount (fee is transferred to contract owner)
      */
     function createCoupon(
         uint256 tokenAmount, 
@@ -189,11 +211,20 @@ contract LoyaltyToken is ERC20, Ownable {
         require(tokenAmount > 0, "Token amount must be greater than 0");
         require(discountPercent > 0 && discountPercent <= 100, "Discount must be between 1-100%");
         require(validityDays > 0 && validityDays <= 365, "Validity must be between 1-365 days");
-        require(balanceOf(msg.sender) >= tokenAmount, "Insufficient token balance");
         
-        // Burn tokens (deflationary mechanism)
+        // Calculate fee based on couponFee (in basis points)
+        uint256 fee = (tokenAmount * couponFee) / 10000;
+        if (fee == 0 && couponFee > 0) fee = 1; // Minimum fee of 1 token for small amounts
+        uint256 totalRequired = tokenAmount + fee;
+        
+        require(balanceOf(msg.sender) >= totalRequired, "Insufficient token balance (including fee)");
+        
+        // Burn the base tokens (deflationary mechanism)
         _burn(msg.sender, tokenAmount);
         totalBurned += tokenAmount;
+        
+        // Transfer fee to contract owner
+        _transfer(msg.sender, owner(), fee);
         
         // Create coupon
         couponId = nextCouponId++;
@@ -215,6 +246,7 @@ contract LoyaltyToken is ERC20, Ownable {
         // Emit events
         emit TokensRedeemed(msg.sender, tokenAmount);
         emit CouponCreated(couponId, msg.sender, discountPercent, tokenAmount);
+        emit CouponFeeCharged(msg.sender, fee);
         
         return couponId;
     }
@@ -283,4 +315,5 @@ contract LoyaltyToken is ERC20, Ownable {
     // Events for coupon system
     event CouponCreated(uint256 indexed couponId, address indexed user, uint256 discountPercent, uint256 tokensBurned);
     event CouponUsed(uint256 indexed couponId, address indexed user);
+    event CouponFeeCharged(address indexed user, uint256 feeAmount);
 }
